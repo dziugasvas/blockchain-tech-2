@@ -37,7 +37,7 @@ vector<Transaction> generateTransactions(int count, const vector<User>& users, s
     for (int i = 0; i < count; i++) {
         int s = userDist(rng);
         int r = userDist(rng);
-        while (r == s) {           
+        while (r == s) {
             r = userDist(rng);
         }
 

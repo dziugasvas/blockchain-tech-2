@@ -71,7 +71,7 @@ void compress(uint32_t h[8], const unsigned char* block) {
     }
 }
 
-} 
+}
 
 string hashFunction(const string& input) {
     uint32_t h[8];

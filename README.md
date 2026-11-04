@@ -77,4 +77,4 @@ Bendras laikas: 345.907 ms
 
 ## DI naudojimas
 
-v0.1 kurta su Claude (Anthropic) pagalba – struktūros planavimui, kodo pavyzdžiams ir paaiškinimams.
+v0.1 kurta su ChatGPT ir Claude (Anthropic) pagalba – struktūros planavimui ir kodo peržiūrėjimui.
