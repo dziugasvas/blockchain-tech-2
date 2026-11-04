@@ -11,13 +11,15 @@ using std::endl;
 using std::string;
 using std::vector;
 
-const int USER_COUNT = 1000;
-const int TX_COUNT = 10000;
-const int BLOCK_SIZE = 100;
 const int DIFFICULTY = 3;
 const unsigned SEED = 42;
 
-int main() {
+int main(int argc, char* argv[]) {
+    bool small = (argc > 1 && string(argv[1]) == "small");
+    int USER_COUNT = small ? 5 : 1000;
+    int TX_COUNT = small ? 20 : 10000;
+    int BLOCK_SIZE = small ? 5 : 100;
+
     auto programStart = std::chrono::steady_clock::now();
     std::mt19937 rng(SEED);
 
@@ -100,6 +102,13 @@ int main() {
         cout << "  prev_hash: " << block.header.prev_hash << endl;
         cout << "  tx_root:   " << block.header.tx_root << endl;
         cout << "  hash:      " << block.hash << " (difficulty " << block.header.difficulty << ")" << endl;
+    }
+
+    if (small) {
+        cout << endl << "Balansai (pradinis -> galutinis):" << endl;
+        for (const User& u : users) {
+            cout << "  " << u.name << ": " << u.balance << " -> " << balances[u.public_key] << endl;
+        }
     }
 
     auto programEnd = std::chrono::steady_clock::now();
