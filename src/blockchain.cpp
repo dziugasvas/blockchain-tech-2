@@ -61,12 +61,39 @@ string computeBlockHash(const BlockHeader& h) {
     return hashFunction(serializeHeader(h));
 }
 
-string computeTxRoot(const vector<Transaction>& txs) {
-    string joined;
-    for (const Transaction& tx : txs) {
-        joined += tx.id;
+string hexToBytes(const string& hex) {
+    string bytes;
+    for (size_t i = 0; i + 1 < hex.size(); i += 2) {
+        bytes += (char)std::stoi(hex.substr(i, 2), nullptr, 16);
     }
-    return hashFunction(joined);
+    return bytes;
+}
+
+string merkleRoot(vector<string> level) {
+    if (level.empty()) {
+        return hashFunction("");
+    }
+
+    while (level.size() > 1) {
+        if (level.size() % 2 == 1) {
+            level.push_back(level.back());
+        }
+
+        vector<string> next;
+        for (size_t i = 0; i < level.size(); i += 2) {
+            next.push_back(hashFunction(hexToBytes(level[i]) + hexToBytes(level[i + 1])));
+        }
+        level = next;
+    }
+    return level[0];
+}
+
+string computeTxRoot(const vector<Transaction>& txs) {
+    vector<string> ids;
+    for (const Transaction& tx : txs) {
+        ids.push_back(tx.id);
+    }
+    return merkleRoot(ids);
 }
 
 bool meetsDifficulty(const string& hash, int difficulty) {

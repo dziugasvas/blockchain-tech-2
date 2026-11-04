@@ -44,6 +44,8 @@ struct Block {
 
 std::string serializeHeader(const BlockHeader& h);
 std::string computeBlockHash(const BlockHeader& h);
+std::string hexToBytes(const std::string& hex);
+std::string merkleRoot(std::vector<std::string> level);
 std::string computeTxRoot(const std::vector<Transaction>& txs);
 bool meetsDifficulty(const std::string& hash, int difficulty);
 uint64_t mineBlock(Block& block);
