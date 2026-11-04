@@ -2,3 +2,4 @@ blockchain
 *.csv
 *.txt
 run_tests
+run_bench
