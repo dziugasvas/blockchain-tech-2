@@ -123,8 +123,12 @@ uint64_t mineBlock(Block& block) {
 }
 
 bool mineWithBudget(Block& block, uint64_t budget, uint64_t& attempts) {
+    const BlockHeader& h = block.header;
+    string prefix = h.prev_hash + "|" + to_string(h.timestamp) + "|" + to_string(h.version) + "|" + h.tx_root + "|";
+    string suffix = "|" + to_string(h.difficulty);
+
     for (uint64_t i = 0; i < budget; i++) {
-        string hash = computeBlockHash(block.header);
+        string hash = hashFunction(prefix + to_string(block.header.nonce) + suffix);
         attempts++;
         if (meetsDifficulty(hash, block.header.difficulty)) {
             block.hash = hash;
