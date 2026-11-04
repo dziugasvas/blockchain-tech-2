@@ -195,6 +195,64 @@ void testDeterminism() {
           createGenesisBlock().hash == createGenesisBlock().hash);
 }
 
+void testMoreTransactionCases() {
+    Balances b = startBalances();
+    check("Nezinomas siuntejas atmetamas",
+          checkTransaction(makeTx("X", "B", 10, 1), b) == "nezinomas siuntejas");
+    check("Siuntejas ir gavejas negali sutapti",
+          checkTransaction(makeTx("A", "A", 10, 2), b) == "siuntejas ir gavejas sutampa");
+
+    vector<Transaction> pool = {makeTx("C", "A", 10, 3)};
+    std::mt19937 rng(1);
+    Block candidate = buildCandidate(pool, b, createGenesisBlock().hash, 3, MAX_BLOCK_TX, rng);
+    check("Jei niekas negali sumoketi, kandidatas tuscias", candidate.transactions.empty());
+}
+
+void testMoreBlockCases() {
+    Balances confirmed = startBalances();
+    std::unordered_set<string> confirmedIds;
+    string prev = createGenesisBlock().hash;
+    Balances newState;
+
+    Block wrongVersion = makeBlock(prev, {makeTx("A", "B", 10, 1)});
+    wrongVersion.header.version = 2;
+    mineBlock(wrongVersion);
+    check("Nepalaikoma versija atmetama",
+          validateBlock(wrongVersion, prev, 3, confirmed, confirmedIds, newState) == "nepalaikoma versija");
+
+    vector<Transaction> many;
+    for (uint64_t i = 1; i <= MAX_BLOCK_TX + 1; i++) {
+        many.push_back(makeTx("A", "B", 1, i));
+    }
+    Block tooBig = makeBlock(prev, many);
+    check("Blokas su daugiau nei 100 transakciju atmetamas",
+          validateBlock(tooBig, prev, 3, confirmed, confirmedIds, newState) == "per daug transakciju");
+
+    Block wrongHash = makeBlock(prev, {makeTx("A", "B", 10, 1)});
+    wrongHash.hash = string(64, '0');
+    check("Pakeista bloko maisa atmetama",
+          validateBlock(wrongHash, prev, 3, confirmed, confirmedIds, newState) == "neteisinga bloko maisa");
+}
+
+void testMining() {
+    Block block = makeBlock(createGenesisBlock().hash, {makeTx("A", "B", 10, 1)});
+
+    Block oneStep = block;
+    oneStep.header.nonce = 0;
+    uint64_t attemptsOne = 0;
+    mineWithBudget(oneStep, 1000000, attemptsOne);
+    check("mineWithBudget maisa sutampa su computeBlockHash", oneStep.hash == computeBlockHash(oneStep.header));
+
+    Block twoSteps = block;
+    twoSteps.header.nonce = 0;
+    uint64_t attemptsTwo = 0;
+    uint64_t half = attemptsOne / 2;
+    bool foundEarly = mineWithBudget(twoSteps, half, attemptsTwo);
+    bool foundLater = mineWithBudget(twoSteps, 1000000, attemptsTwo);
+    check("Kasimas tesiamas nuo neisbandyto nonce",
+          !foundEarly && foundLater && twoSteps.header.nonce == oneStep.header.nonce && attemptsTwo == attemptsOne);
+}
+
 int main() {
     testValidPayment();
     testInvalidTransactions();
@@ -205,6 +263,9 @@ int main() {
     testMerkle();
     testCandidates();
     testDeterminism();
+    testMoreTransactionCases();
+    testMoreBlockCases();
+    testMining();
 
     cout << endl << "Is viso: " << passed << " PASS, " << failed << " FAIL" << endl;
     return failed == 0 ? 0 : 1;
