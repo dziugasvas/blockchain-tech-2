@@ -24,5 +24,15 @@ int main() {
     }
     cout << "Bendra visu balansu suma: " << suma << endl;
 
+    std::vector<Transaction> transactions = generateTransactions(10000, users, rng);
+    cout << endl << "Sugeneruota transakciju: " << transactions.size() << endl;
+    cout << "Pirmos 3 transakcijos:" << endl;
+    for (int i = 0; i < 3; i++) {
+        const Transaction& tx = transactions[i];
+        cout << "  #" << tx.sequence << ": " << tx.sender.substr(0, 8) << "... -> "
+             << tx.receiver.substr(0, 8) << "... | suma: " << tx.amount
+             << " | id: " << tx.id << endl;
+    }
+
     return 0;
 }
