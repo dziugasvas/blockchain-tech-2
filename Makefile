@@ -8,3 +8,6 @@ run: create
 
 clean:
 	rm -f blockchain
+
+test:
+	g++ -std=c++17 -O2 -Wall -Isrc src/hash.cpp src/blockchain.cpp tests/tests.cpp -o run_tests && ./run_tests
