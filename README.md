@@ -150,4 +150,4 @@ Lėšų suma pradžioje ir pabaigoje ta pati. Palyginti su v0.1, skaičiai šiek
 
 ## DI naudojimas
 
-v0.1 kurta su ChatGPT ir Claude (Anthropic) pagalba – struktūros planavimui ir kodo peržiūrėjimui.
+v0.1 ir v0.2 kurtos su ChatGPT ir Claude (Anthropic) pagalba – struktūros planavimui, kodo generavimui, peržiūrai ir testams.
