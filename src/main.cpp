@@ -30,13 +30,21 @@ int main(int argc, char* argv[]) {
 
     vector<Transaction> generated = generateTransactions(TX_COUNT, users, rng);
     vector<Transaction> pool;
+    std::unordered_set<string> knownIds;
+    std::unordered_set<string> confirmedIds;
     int rejectedAtPool = 0;
     for (const Transaction& tx : generated) {
-        if (isValidForPool(tx, balances)) {
-            pool.push_back(tx);
-        } else {
-            rejectedAtPool++;
+        string reason = checkTransaction(tx, balances);
+        if (reason.empty() && knownIds.count(tx.id) > 0) {
+            reason = "dubliuotas ID";
         }
+        if (!reason.empty()) {
+            cout << "Atmesta tx #" << tx.sequence << ": " << reason << endl;
+            rejectedAtPool++;
+            continue;
+        }
+        knownIds.insert(tx.id);
+        pool.push_back(tx);
     }
 
     vector<Block> chain;
@@ -54,7 +62,7 @@ int main(int argc, char* argv[]) {
         Balances temp = balances;
         for (const Transaction& tx : pool) {
             if ((int)block.transactions.size() == BLOCK_SIZE) break;
-            if (applyTransaction(temp, tx)) {
+            if (applyTransaction(temp, tx).empty()) {
                 block.transactions.push_back(tx);
             }
         }
@@ -65,7 +73,7 @@ int main(int argc, char* argv[]) {
 
         block.header.prev_hash = chain.back().hash;
         block.header.timestamp = (uint64_t)std::time(nullptr);
-        block.header.version = 1;
+        block.header.version = BLOCK_VERSION;
         block.header.difficulty = DIFFICULTY;
         block.header.tx_root = computeTxRoot(block.transactions);
 
@@ -75,22 +83,22 @@ int main(int argc, char* argv[]) {
         double ms = std::chrono::duration<double, std::milli>(end - start).count();
 
         Balances newState;
-        if (!validateBlock(block, chain.back().hash, DIFFICULTY, balances, newState)) {
-            cout << "Blokas atmestas po patikros!" << endl;
+        string reason = validateBlock(block, chain.back().hash, DIFFICULTY, balances, confirmedIds, newState);
+        if (!reason.empty()) {
+            cout << "Blokas atmestas: " << reason << endl;
             break;
         }
 
         balances = newState;
         chain.push_back(block);
         includedCount += block.transactions.size();
-
-        std::unordered_set<string> includedIds;
         for (const Transaction& tx : block.transactions) {
-            includedIds.insert(tx.id);
+            confirmedIds.insert(tx.id);
         }
+
         vector<Transaction> remaining;
         for (const Transaction& tx : pool) {
-            if (includedIds.count(tx.id) == 0) {
+            if (confirmedIds.count(tx.id) == 0) {
                 remaining.push_back(tx);
             }
         }

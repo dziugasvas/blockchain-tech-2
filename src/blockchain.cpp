@@ -156,37 +156,50 @@ void saveInitialState(const vector<User>& users, const string& filename) {
     }
 }
 
-bool isValidForPool(const Transaction& tx, const Balances& balances) {
-    if (balances.count(tx.sender) == 0 || balances.count(tx.receiver) == 0) return false;
-    if (tx.sender == tx.receiver) return false;
-    if (tx.amount == 0) return false;
-    if (tx.id != computeTransactionId(tx)) return false;
-    return true;
+string checkTransaction(const Transaction& tx, const Balances& balances) {
+    if (balances.count(tx.sender) == 0) return "nezinomas siuntejas";
+    if (balances.count(tx.receiver) == 0) return "nezinomas gavejas";
+    if (tx.sender == tx.receiver) return "siuntejas ir gavejas sutampa";
+    if (tx.amount == 0) return "suma turi buti teigiama";
+    if (tx.id != computeTransactionId(tx)) return "neteisingas transakcijos ID";
+    return "";
 }
 
-bool applyTransaction(Balances& balances, const Transaction& tx) {
-    if (balances[tx.sender] < tx.amount) {
-        return false;
-    }
-    balances[tx.sender] -= tx.amount;
-    balances[tx.receiver] += tx.amount;
-    return true;
+string applyTransaction(Balances& balances, const Transaction& tx) {
+    uint64_t senderBalance = balances.at(tx.sender);
+    uint64_t receiverBalance = balances.at(tx.receiver);
+
+    if (senderBalance < tx.amount) return "nepakankamas balansas";
+    if (receiverBalance > UINT64_MAX - tx.amount) return "balanso perpildymas";
+
+    balances[tx.sender] = senderBalance - tx.amount;
+    balances[tx.receiver] = receiverBalance + tx.amount;
+    return "";
 }
 
-bool validateBlock(const Block& block, const string& expectedPrevHash,
-                   int expectedDifficulty, const Balances& confirmed, Balances& newState) {
-    if (block.header.prev_hash != expectedPrevHash) return false;
-    if (block.header.difficulty != expectedDifficulty) return false;
-    if (block.header.tx_root != computeTxRoot(block.transactions)) return false;
+string validateBlock(const Block& block, const string& expectedPrevHash, int expectedDifficulty,
+                     const Balances& confirmed, const std::unordered_set<string>& confirmedIds,
+                     Balances& newState) {
+    if (block.header.version != BLOCK_VERSION) return "nepalaikoma versija";
+    if (block.header.prev_hash != expectedPrevHash) return "neteisingas prev_hash";
+    if (block.header.difficulty != expectedDifficulty) return "neteisingas sudetingumas";
+    if (block.transactions.size() > MAX_BLOCK_TX) return "per daug transakciju";
+    if (block.header.tx_root != computeTxRoot(block.transactions)) return "neteisingas tx_root";
 
     string hash = computeBlockHash(block.header);
-    if (hash != block.hash || !meetsDifficulty(hash, expectedDifficulty)) return false;
+    if (hash != block.hash) return "neteisinga bloko maisa";
+    if (!meetsDifficulty(hash, expectedDifficulty)) return "netinkamas PoW";
 
     newState = confirmed;
+    std::unordered_set<string> blockIds;
     for (const Transaction& tx : block.transactions) {
-        if (!isValidForPool(tx, newState) || !applyTransaction(newState, tx)) {
-            return false;
-        }
+        if (confirmedIds.count(tx.id) > 0) return "transakcija jau patvirtinta";
+        if (blockIds.count(tx.id) > 0) return "transakcija bloke kartojasi";
+        blockIds.insert(tx.id);
+
+        string reason = checkTransaction(tx, newState);
+        if (reason.empty()) reason = applyTransaction(newState, tx);
+        if (!reason.empty()) return reason;
     }
-    return true;
+    return "";
 }

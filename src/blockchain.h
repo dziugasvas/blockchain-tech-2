@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <random>
 #include <unordered_map>
+#include <unordered_set>
 
 struct User {
     std::string name;
@@ -57,9 +58,13 @@ Balances createBalances(const std::vector<User>& users);
 uint64_t totalBalance(const Balances& balances);
 void saveInitialState(const std::vector<User>& users, const std::string& filename);
 
-bool isValidForPool(const Transaction& tx, const Balances& balances);
-bool applyTransaction(Balances& balances, const Transaction& tx);
-bool validateBlock(const Block& block, const std::string& expectedPrevHash,
-                   int expectedDifficulty, const Balances& confirmed, Balances& newState);
+const uint32_t BLOCK_VERSION = 1;
+const size_t MAX_BLOCK_TX = 100;
+
+std::string checkTransaction(const Transaction& tx, const Balances& balances);
+std::string applyTransaction(Balances& balances, const Transaction& tx);
+std::string validateBlock(const Block& block, const std::string& expectedPrevHash, int expectedDifficulty,
+                          const Balances& confirmed, const std::unordered_set<std::string>& confirmedIds,
+                          Balances& newState);
 
 #endif
