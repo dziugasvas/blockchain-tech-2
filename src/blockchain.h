@@ -50,6 +50,7 @@ std::string merkleRoot(std::vector<std::string> level);
 std::string computeTxRoot(const std::vector<Transaction>& txs);
 bool meetsDifficulty(const std::string& hash, int difficulty);
 uint64_t mineBlock(Block& block);
+bool mineWithBudget(Block& block, uint64_t budget, uint64_t& attempts);
 Block createGenesisBlock();
 
 typedef std::unordered_map<std::string, uint64_t> Balances;
@@ -66,5 +67,8 @@ std::string applyTransaction(Balances& balances, const Transaction& tx);
 std::string validateBlock(const Block& block, const std::string& expectedPrevHash, int expectedDifficulty,
                           const Balances& confirmed, const std::unordered_set<std::string>& confirmedIds,
                           Balances& newState);
+
+Block buildCandidate(std::vector<Transaction> pool, const Balances& confirmed, const std::string& prevHash,
+                     int difficulty, size_t blockSize, std::mt19937& rng);
 
 #endif

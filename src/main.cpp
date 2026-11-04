@@ -12,6 +12,9 @@ using std::string;
 using std::vector;
 
 const int DIFFICULTY = 3;
+const int CANDIDATES = 5;
+const uint64_t START_BUDGET = 5000;
+const int MAX_ROUNDS = 10;
 const unsigned SEED = 42;
 
 int main(int argc, char* argv[]) {
@@ -50,37 +53,53 @@ int main(int argc, char* argv[]) {
     vector<Block> chain;
     chain.push_back(createGenesisBlock());
     int includedCount = 0;
+        uint64_t totalCandidateAttempts = 0;
 
     cout << "Vartotoju: " << users.size() << ", transakciju: " << generated.size()
          << ", seed: " << SEED << ", difficulty: " << DIFFICULTY << endl;
     cout << "Genesis hash: " << chain[0].hash << endl << endl;
 
     while (!pool.empty()) {
-        std::shuffle(pool.begin(), pool.end(), rng);
-
-        Block block;
-        Balances temp = balances;
-        for (const Transaction& tx : pool) {
-            if ((int)block.transactions.size() == BLOCK_SIZE) break;
-            if (applyTransaction(temp, tx).empty()) {
-                block.transactions.push_back(tx);
-            }
+                vector<Block> candidates;
+        for (int c = 0; c < CANDIDATES; c++) {
+            candidates.push_back(buildCandidate(pool, balances, chain.back().hash, DIFFICULTY, BLOCK_SIZE, rng));
         }
-
-        if (block.transactions.empty()) {
+        if (candidates[0].transactions.empty()) {
             break;
         }
 
-        block.header.prev_hash = chain.back().hash;
-        block.header.timestamp = (uint64_t)std::time(nullptr);
-        block.header.version = BLOCK_VERSION;
-        block.header.difficulty = DIFFICULTY;
-        block.header.tx_root = computeTxRoot(block.transactions);
+        vector<uint64_t> attempts(CANDIDATES, 0);
+        vector<bool> found(CANDIDATES, false);
+        uint64_t budget = START_BUDGET;
+        int winner = -1;
+        int rounds = 0;
 
         auto start = std::chrono::steady_clock::now();
-        uint64_t attempts = mineBlock(block);
+        while (winner == -1 && rounds < MAX_ROUNDS) {
+            rounds++;
+            for (int c = 0; c < CANDIDATES; c++) {
+                found[c] = mineWithBudget(candidates[c], budget, attempts[c]);
+            }
+            for (int c = 0; c < CANDIDATES; c++) {
+                if (found[c] && (winner == -1 || attempts[c] < attempts[winner])) {
+                    winner = c;
+                }
+            }
+            budget *= 2;
+        }
         auto end = std::chrono::steady_clock::now();
         double ms = std::chrono::duration<double, std::milli>(end - start).count();
+
+        for (int c = 0; c < CANDIDATES; c++) {
+            totalCandidateAttempts += attempts[c];
+        }
+
+        if (winner == -1) {
+            cout << "Nei vienas kandidatas nerado nonce per " << MAX_ROUNDS << " raundu, stabdoma" << endl;
+            break;
+        }
+
+        Block block = candidates[winner];
 
         Balances newState;
         string reason = validateBlock(block, chain.back().hash, DIFFICULTY, balances, confirmedIds, newState);
@@ -105,11 +124,17 @@ int main(int argc, char* argv[]) {
         pool = remaining;
 
         cout << "Blokas #" << chain.size() - 1 << " | tx: " << block.transactions.size()
-             << " | nonce: " << block.header.nonce << " | bandymu: " << attempts
+             << " | nonce: " << block.header.nonce << " | bandymu: " << attempts[winner]
              << " | laikas: " << ms << " ms" << endl;
         cout << "  prev_hash: " << block.header.prev_hash << endl;
         cout << "  tx_root:   " << block.header.tx_root << endl;
         cout << "  hash:      " << block.hash << " (difficulty " << block.header.difficulty << ")" << endl;
+        cout << "  kandidatai:";
+        for (int c = 0; c < CANDIDATES; c++) {
+            cout << " #" << c + 1 << "(" << candidates[c].transactions.size() << " tx, "
+                 << attempts[c] << (found[c] ? ", rado)" : ")");
+        }
+        cout << " -> laimejo #" << winner + 1 << ", raundu: " << rounds << endl;
     }
 
     if (small) {
@@ -131,6 +156,7 @@ int main(int argc, char* argv[]) {
     cout << "Liko pool (nepakankamas balansas): " << pool.size() << endl;
     cout << "Pradine lesu suma: " << initialSum << endl;
     cout << "Galutine lesu suma: " << totalBalance(balances) << endl;
+    cout << "Kandidatu bandymu is viso: " << totalCandidateAttempts << endl;
     cout << "Bendras laikas: " << totalMs << " ms" << endl;
 
     return 0;

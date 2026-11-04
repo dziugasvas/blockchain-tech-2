@@ -1,6 +1,8 @@
 #include "blockchain.h"
 #include "hash.h"
 #include <fstream>
+#include <algorithm>
+#include <ctime>
 
 using std::vector;
 using std::string;
@@ -120,6 +122,19 @@ uint64_t mineBlock(Block& block) {
     }
 }
 
+bool mineWithBudget(Block& block, uint64_t budget, uint64_t& attempts) {
+    for (uint64_t i = 0; i < budget; i++) {
+        string hash = computeBlockHash(block.header);
+        attempts++;
+        if (meetsDifficulty(hash, block.header.difficulty)) {
+            block.hash = hash;
+            return true;
+        }
+        block.header.nonce++;
+    }
+    return false;
+}
+
 Block createGenesisBlock() {
     Block genesis;
     genesis.header.prev_hash = string(64, '0');
@@ -202,4 +217,26 @@ string validateBlock(const Block& block, const string& expectedPrevHash, int exp
         if (!reason.empty()) return reason;
     }
     return "";
+}
+
+Block buildCandidate(vector<Transaction> pool, const Balances& confirmed, const string& prevHash,
+                     int difficulty, size_t blockSize, std::mt19937& rng) {
+    std::shuffle(pool.begin(), pool.end(), rng);
+
+    Block block;
+    Balances temp = confirmed;
+    for (const Transaction& tx : pool) {
+        if (block.transactions.size() == blockSize) break;
+        if (applyTransaction(temp, tx).empty()) {
+            block.transactions.push_back(tx);
+        }
+    }
+
+    block.header.prev_hash = prevHash;
+    block.header.timestamp = (uint64_t)std::time(nullptr);
+    block.header.version = BLOCK_VERSION;
+    block.header.difficulty = difficulty;
+    block.header.tx_root = computeTxRoot(block.transactions);
+    block.header.nonce = 0;
+    return block;
 }
