@@ -1,25 +1,19 @@
 #include "hash.h"
-#include <fstream>
-#include <sstream>
-#include <iomanip>
-#include <iostream>
 #include <cstdint>
+
+// Maisos funkcija is pirmo darbo v0.2 versijos, kurta naudojant DI (apdorojimas 32 baitu blokais, ARX + daugyba)
 
 using std::string;
 
-// ---------------------------------------------------------------------------
-// v0.2 maisos funkcija (apdorojimas 32 baitu blokais, ARX + daugyba)
-// Mokomasis algoritmas, NE kriptografiskai saugus.
-// ---------------------------------------------------------------------------
 namespace {
 
-// Pradine busena: sqrt(p) trupmenines dalies pirmieji 32 bitai, p = 41,43,47,53,59,61,67,71
+// pradines reiksmes (is sqrt pirminiu skaiciu 41..71)
 const uint32_t IV[8] = {
     0x67332667, 0x8eb44a87, 0xdb0c2e0d, 0x47b5481d,
     0xae5f9156, 0xcf6c85d3, 0x2f73477d, 0x6d1826ca
 };
 
-// Raundu konstantos: sqrt(p) trupmenines dalys, p = 73,79,83,...,151 (16 pirminiu)
+// konstantos kiekvienam raundui (sqrt pirminiu 73..151)
 const uint32_t RK[16] = {
     0x8b43d457, 0xe360b596, 0x1c456002, 0x6f196331,
     0xd94ebeb1, 0x0cc4a611, 0x261dc1f2, 0x5815a7be,
@@ -27,10 +21,10 @@ const uint32_t RK[16] = {
     0xb467369e, 0xca320b75, 0x34e0d42e, 0x49c7d9bd
 };
 
-// Posukiu dydziai kiekvienai "juostai"
+// per kiek bitu sukama kiekviena reiksme
 const int ROT[8] = {5, 9, 13, 17, 21, 25, 29, 11};
 
-// Nelyginiai daugikliai (e ir pi skaitmenys), kad daugyba butu apgrazinama mod 2^32
+// daugikliai is e ir pi (nelyginiai)
 const uint32_t MUL_E  = 0xB7E15163;
 const uint32_t MUL_PI = 0x243F6A89;
 
@@ -40,8 +34,7 @@ inline uint32_t rotl(uint32_t x, int r) {
     return (x << r) | (x >> (32 - r));
 }
 
-// Maisymo permutacija: kiekviename raunde juostos sudedamos su kaimynais,
-// pasukamos, sujungiamos XOR, tada daugybos ir xorshift zingsniu isskleidziami bitai.
+// 10 raundu maisymo: sudetis, pasukimas, XOR, daugyba
 void permute(uint32_t x[8]) {
     for (int r = 0; r < ROUNDS; r++) {
         x[0] += RK[r];
@@ -59,7 +52,7 @@ void permute(uint32_t x[8]) {
     }
 }
 
-// Vieno 32 baitu bloko suspaudimas: h = h + P(h XOR blokas)
+// apdoroja viena 32 baitu bloka
 void compress(uint32_t h[8], const unsigned char* block) {
     uint32_t x[8];
 
@@ -78,7 +71,7 @@ void compress(uint32_t h[8], const unsigned char* block) {
     }
 }
 
-}  // namespace
+} 
 
 string hashFunction(const string& input) {
     uint32_t h[8];
@@ -95,7 +88,7 @@ string hashFunction(const string& input) {
         compress(h, data + b * 32);
     }
 
-    // Uzpildymas: likusieji baitai, 0x80, nuliai, o paskutiniuose 8 baituose - ivesties ilgis baitais
+    // likusi dalis + 0x80 + nuliai + ivesties ilgis gale
     unsigned char tail[64] = {0};
     const size_t remaining = input.size() % 32;
 

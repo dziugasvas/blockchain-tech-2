@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdint>
 #include <random>
+#include <unordered_map>
 
 struct User {
     std::string name;
